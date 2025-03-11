@@ -75,6 +75,17 @@ After training and evaluating the models, the following results were observed:
 ## Conclusion
 This project demonstrates that various machine learning models can effectively predict the complex property (**STALKiness**) of kernels using **EARitability** and **aMAIZEingness** as inputs. The analysis highlights trade-offs among models regarding training time, prediction accuracy, and computational cost, providing valuable insights for real-world applications in chemistry and materials science.
 
+## Acknowledgements
+
+This project builds upon ideas and methodologies obtained from online resources and guidance provided by [Prof. Darin](https://www.darinulness.com/teaching/machine-learning-for-undergraduate-chemistry). We are grateful for his contributions and support.
+
+## Contact and Support
+
+For more information, support, or to provide feedback, please visit:
+- **Website:** [www.darinulness.com](https://www.darinulness.com)
+- **Concordia College Chemistry Department:** Visit the department page for additional resources and contact information.
+
+
 ---
 
 For more details on the methodology and experiments, refer to the **Cobber Machine Learning Explorer Guide** included in this repository.
