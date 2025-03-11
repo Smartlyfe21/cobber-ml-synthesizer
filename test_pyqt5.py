@@ -2,6 +2,8 @@ import sys
 import time
 import numpy as np
 import pandas as pd
+import os
+from pyqtgraph.exporters import ImageExporter
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QPushButton, QLabel, QComboBox,
     QSlider, QLineEdit, QVBoxLayout, QHBoxLayout, QFileDialog, QGridLayout, QTextEdit, QGroupBox, QScrollArea
@@ -27,6 +29,11 @@ class MLGui(QMainWindow):
         # Initialize data and model
         self.data = None
         self.model = None
+
+        #These wil be set after training:
+        self.X_test = None
+        self.Y_test = None
+        self.Y_pred = None
 
         # Set up the main widget and layout
         self.main_widget = QWidget()
@@ -72,11 +79,6 @@ class MLGui(QMainWindow):
         self.split_slider.setTickPosition(QSlider.TicksBelow)
         self.control_layout.addWidget(self.split_slider)
 
-        # Save Plot Button
-        self.save_button = QPushButton("Save Plot")
-        self.save_button.clicked.connect(self.save_plot)
-        self.control_layout.addWidget(self.save_button)
-
         # Display current split percentage
         self.split_value_label = QLabel("80% Train / 20% Test")
         self.control_layout.addWidget(self.split_value_label)
@@ -102,6 +104,16 @@ class MLGui(QMainWindow):
         self.pred_button = QPushButton("Predict STOCKiness")
         self.pred_button.clicked.connect(self.predict_y)
         self.control_layout.addWidget(self.pred_button)
+
+        # Save Plot Button (for saving both plots)
+        self.save_plot_button = QPushButton("Save All Plots")
+        self.save_plot_button.clicked.connect(self.save_all_plots)
+        self.control_layout.addWidget(self.save_plot_button)
+
+        # Save Predictions Button
+        self.save_predictions_button = QPushButton("Save Predictions")
+        self.save_predictions_button.clicked.connect(self.save_predictions)
+        self.control_layout.addWidget(self.save_predictions_button)
 
         # Spacer
         self.control_layout.addStretch()
@@ -149,6 +161,65 @@ class MLGui(QMainWindow):
 
         # Add Display Panel to the Main Layout
         self.layout.addWidget(self.display_group, 0, 1, 1, 3)
+
+    def save_all_plots(self):
+        # Save both the Actual vs Predicted and Residuals plots in one go
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        base_path, _ = QFileDialog.getSaveFileName(self, "Save All Plots", "", "PNG Files (*.png);;All Files (*)",
+                                                   options=options)
+        if base_path:
+            base, ext = os.path.splitext(base_path)
+            if not ext:
+                ext = ".png"
+            # Save Actual vs Predicted plot
+            exporter1 = ImageExporter(self.graph_widget1.plotItem)
+            file_path1 = base + "_actual_vs_predicted" + ext
+            exporter1.export(file_path1)
+            # Save Residuals plot
+            exporter2 = ImageExporter(self.graph_widget2.plotItem)
+            file_path2 = base + "_residuals" + ext
+            exporter2.export(file_path2)
+            self.append_console(f"Plots saved as:\n{file_path1}\nand\n{file_path2}\n")
+        else:
+            self.append_console("Plot saving canceled.\n")
+
+    def save_predictions(self):
+        if hasattr(self, 'X_test') and hasattr(self, 'Y_test') and hasattr(self, 'Y_pred'):
+            mse = mean_squared_error(self.Y_test, self.Y_pred)
+            mae = mean_absolute_error(self.Y_test, self.Y_pred)
+            r2 = r2_score(self.Y_test, self.Y_pred)
+            self.save_predictions_to_csv(self.X_test, self.Y_test, self.Y_pred, mse, mae, r2)
+        else:
+            self.append_console("No predictions available to save. Please run training first.\n")
+
+    def save_predictions_to_csv(self, X_test, Y_test, Y_pred, mse, mae, r2):
+        # Ensure X_test is a DataFrame; if not, convert it.
+        if not isinstance(X_test, pd.DataFrame):
+            # Adjust the column names as necessary
+            X_test = pd.DataFrame(X_test, columns=['EARitability', 'aMAIZEingness'])
+        df = X_test.copy()
+        df['Actual'] = Y_test
+        df['Predicted'] = Y_pred
+        df['Residuals'] = Y_test - Y_pred
+        df['MSE'] = mse
+        df['MAE'] = mae
+        df['R2'] = r2
+
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Predictions", "", "CSV Files (*.csv);;All Files (*)",
+                                                   options=options)
+        if file_path:
+            if not file_path.endswith('.csv'):
+                file_path += '.csv'
+            try:
+                df.to_csv(file_path, index=False)
+                self.append_console(f"Predictions saved as {file_path}\n")
+            except Exception as e:
+                self.append_console(f"Error saving predictions: {str(e)}\n")
+        else:
+            self.append_console("Prediction saving canceled.\n")
 
     def update_split_label(self, value):
         test_percentage = 100 - value
@@ -244,10 +315,6 @@ class MLGui(QMainWindow):
             self.graph_widget2.plot([min(Y_test), max(Y_test)], [0, 0], pen=pg.mkPen('r', width=2, style=Qt.DashLine))
             self.graph_widget2.setXRange(min_val, max_val)
 
-            # Save predictions and metrics
-            self.save_predictions(Y_test, Y_pred, mse, mae, r2, alg)
-
-
         else:
             self.append_console("No data loaded. Please load a CSV file first.\n")
 
@@ -264,50 +331,6 @@ class MLGui(QMainWindow):
                 self.append_console(f"Prediction failed: {str(e)}\n")
         else:
             self.append_console("No model trained. Please train a model first.\n")
-
-    def save_predictions(self, Y_test, Y_pred, mse, mae, r2, algorithm):
-        # Create a DataFrame
-        results_df = pd.DataFrame({
-            'Actual STOCKiness': Y_test,
-            'Predicted STOCKiness': Y_pred,
-            'MSE': [mse] * len(Y_test),
-            'MAE': [mae] * len(Y_test),
-            'R²': [r2] * len(Y_test)
-        })
-
-        # Open a file dialog to choose the save location and filename
-        options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, f"Save {algorithm} Predictions", "", "CSV Files (*.csv);;All Files (*)", options=options
-        )
-        if file_path:
-            # Ensure the file has the correct extension
-            if not file_path.lower().endswith('.csv'):
-                file_path += '.csv'
-
-            # Save the DataFrame to a CSV file
-            results_df.to_csv(file_path, index=False)
-            self.append_console(f"{algorithm} predictions and metrics saved to {file_path}\n")
-
-    def save_plot(self):
-        if self.graph_widget1.isVisible():
-            # Open a file dialog to choose the save location and filename
-            options = QFileDialog.Options()
-            file_path, _ = QFileDialog.getSaveFileName(
-                self, "Save Plot", "", "PNG Files (*.png);;JPEG Files (*.jpg);;All Files (*)", options=options
-            )
-            if file_path:
-                # Ensure the file has the correct extension
-                if not file_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    file_path += '.png'
-
-                # Export the plot to the chosen file
-                exporter = pg.exporters.ImageExporter(self.graph_widget1.plotItem)
-                exporter.parameters()['width'] = 800  # Set the width of the saved image
-                exporter.export(file_path)
-                self.append_console(f"Plot saved to {file_path}\n")
-        else:
-            self.append_console("No plot available to save.\n")
 
 
 if __name__ == "__main__":
