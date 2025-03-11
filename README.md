@@ -8,6 +8,16 @@ In an alternate universe called **Cobberland**, all matter is composed of substa
 
 This project applies machine learning to predict **STALKiness** based on the more easily measurable properties **EARitability** and **aMAIZEingness**. Multiple ML models are explored to assess their predictive performance and to understand the trade-offs between model accuracy, computational efficiency, and overfitting.
 
+## Tools and Workflow
+
+- **Jupyter Notebook:**  
+  Used for generating kernel data. The notebook `CreateNewKernels.ipynb` demonstrates how the kernel data was created.
+
+- **PyCharm:**  
+  The main analysis and GUI application were developed using PyCharm. The source code (now renamed to `CobberMLysn.py`) implements the Cobber Machine Learning Explorer.
+
+This combination allowed for an efficient workflow, with Jupyter Notebook handling data generation and PyCharm providing robust tools for GUI development and model evaluation.
+
 ## Real-World Relevance
 Machine learning is widely used in chemistry to predict molecular properties, design new compounds, and assist in drug discovery. This fictitious example demonstrates how regression analysis can be applied to predict properties, making it easier to translate these concepts into real-world applications.
 
